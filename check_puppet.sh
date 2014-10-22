@@ -29,7 +29,11 @@ CRITICAL_STATE=2
 UNKNOWN_STATE=3
 
 get_puppetservice_state() {
-	. /lib/lsb/init-functions
+	if test -f /lib/lsb/init-functions; then
+		. /lib/lsb/init-functions
+	fi
+	. /etc/init.d/functions
+
 	DAEMON=/usr/bin/puppet
 	test -x $DAEMON || exit $UNKNOWN_STATE
 	NAME="$1"
@@ -39,21 +43,23 @@ get_puppetservice_state() {
 	else
 		PIDFILE="/var/run/${NAME}.pid"
 	fi
-	if (type status_of_proc > /dev/null 2>&1) ; then
-		if [ "$1" != puppetdb ] ; then	
-        		status_of_proc -p "${PIDFILE}" "${DAEMON}" "${NAME}" 	>/dev/null 2>&1
-		else
-			status_of_proc -p $PIDFILE "$JAVA_BIN" "$NAME" >/dev/null 2>&1
-		fi
-		status="$?"	
-            	if [ "$status" = 0 ] ; then
-			read pid < "${PIDFILE}"
-			echo "OK - $DESC is up and running! (pid=$pid)"
-			exit $OK_STATE
-		else
-                	echo "CRITICAL - $DESC is not running!"
-			exit $CRITICAL_STATE
-		fi
+	STATUS="status"
+	if (type -t status_of_proc > /dev/null 2>&1) ; then
+		STATUS="status_of_proc"
+	fi
+	if [ "$1" != puppetdb ] ; then	
+		$STATUS -p "${PIDFILE}" "${DAEMON}" "${NAME}" 	>/dev/null 2>&1
+	else
+		$STATUS -p $PIDFILE "$JAVA_BIN" "$NAME" >/dev/null 2>&1
+	fi
+	status="$?"	
+	if [ "$status" = 0 ] ; then
+		read pid < "${PIDFILE}"
+		echo "OK - $DESC is up and running! (pid=$pid)"
+		exit $OK_STATE
+	else
+		echo "CRITICAL - $DESC is not running!"
+		exit $CRITICAL_STATE
 	fi
 
 
